@@ -229,7 +229,13 @@ class AirCargoProblem(Problem):
         executed.
         """
         # TODO implement (see Russell-Norvig Ed-3 10.2.3  or Russell-Norvig Ed-2 11.2)
+        print('node', node)
+        # state = node.state
         count = 0
+        state = decode_state(node.state, self.state_map)
+        for effect in self.goal:
+            if effect not in state.pos:
+                count += 1
         return count
 
 
@@ -262,7 +268,7 @@ def air_cargo_p2() -> AirCargoProblem:
     # TODO implement Problem 2 definition
     cargos = ['C1', 'C2', 'C3']
     planes = ['P1', 'P2', 'P3']
-    airports = ['JFK', 'SFO']
+    airports = ['ATL', 'JFK', 'SFO']
     pos = [expr('At(C1, SFO)'),
            expr('At(C2, JFK)'),
            expr('At(C3, ATL)'),
@@ -271,6 +277,11 @@ def air_cargo_p2() -> AirCargoProblem:
            expr('At(P3, ATL)'),
            ]
     neg = [
+        expr('At(C3, SFO)'),
+        expr('At(C3, JFK)'),
+        expr('In(C3, P1)'),
+        expr('In(C3, P2)'),
+        expr('In(C3, P3)'),
         expr('At(C2, SFO)'),
         expr('At(C2, ATL)'),
         expr('In(C2, P1)'),
@@ -341,8 +352,8 @@ def air_cargo_p3() -> AirCargoProblem:
     init = FluentState(pos, neg)
     goal = [
         expr('At(C1, JFK)'),
-        expr('At(C2, JFK)'),
-        expr('At(C3, SFO)'),
+        expr('At(C3, JFK)'),
+        expr('At(C2, SFO)'),
         expr('At(C4, SFO)'),
     ]
     return AirCargoProblem(cargos, planes, airports, init, goal)
