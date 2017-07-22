@@ -313,15 +313,19 @@ class PlanningGraph():
         # self.a_levels[level] = set()
         self.a_levels.insert(level, set())
         s_set = set()
+        a_set = set()
         for a in self.all_actions:
             a_node = PgNode_a(a)
             if a_node.prenodes.issubset(self.s_levels[level]):
                 self.a_levels[level].add(a_node)
         for s_node in self.s_levels[level]:
             for a_node in self.a_levels[level]:
-                s_node.parents.add(a_node)
+                s_node.children.add(a_node)
                 s_set.add(s_node)
+                a_node.parents.add(s_node)
+                a_set.add(a_node)
         self.s_levels.insert(level, s_set)
+        self.a_levels.insert(level, a_set)
         return self.a_levels[level]
 
     def add_literal_level(self, level):
@@ -343,12 +347,15 @@ class PlanningGraph():
         #   parent sets of the S nodes
         self.s_levels.insert(level, set())
         a_set = set()
+        s_set = set()
         for a_node in self.a_levels[level - 1]:
             for s_node in a_node.effnodes:
                 a_node.children.add(s_node)
                 a_set.add(a_node)
-                self.s_levels[level].add(s_node)
+                s_node.parents.add(a_node)
+                s_set.add(s_node)
         self.a_levels.insert(level-1, a_set)
+        self.s_levels.insert(level, s_set)
         return self.s_levels[level]
 
     def update_a_mutex(self, nodeset):
@@ -407,8 +414,15 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         """
+        isInconsistent = False
         # TODO test for Inconsistent Effects between nodes
-        return False
+        for effect in node_a1.action.effect_add:
+            if effect in node_a2.action.effect_rem:
+                return True
+        for effect in node_a2.action.effect_add:
+            if effect in node_a1.action.effect_rem:
+                return True
+        return isInconsistent
 
     def interference_mutex(self, node_a1: PgNode_a, node_a2: PgNode_a) -> bool:
         """
@@ -424,7 +438,10 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         """
-        # TODO test for Interference between nodes
+        if set(node_a1.action.effect_add) == set(node_a2.action.precond_neg) and set(node_a1.action.effect_rem) == set(node_a2.action.precond_pos):
+            return True
+        if set(node_a2.action.effect_add) == set(node_a1.action.precond_neg) and set(node_a2.action.effect_rem) == set(node_a1.action.precond_pos):
+            return True
         return False
 
     def competing_needs_mutex(self, node_a1: PgNode_a, node_a2: PgNode_a) -> bool:
@@ -437,8 +454,18 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         """
-
         # TODO test for Competing Needs between nodes
+        precond_pos1 = node_a1.action.precond_pos
+        precond_neg2 = node_a2.action.precond_neg
+        precond_neg1 = node_a1.action.precond_neg
+        precond_pos2 = node_a2.action.precond_pos
+
+        for precond1 in precond_pos1:
+            if precond1 in precond_neg2 or precond1 not in precond_pos2:
+                return True
+        for precond2 in precond_pos2:
+            if precond2 in precond_neg1 or precond2 not in precond_pos1:
+                return True
         return False
 
     def update_s_mutex(self, nodeset: set):
@@ -474,7 +501,7 @@ class PlanningGraph():
         :return: bool
         """
         # TODO test for negation between nodes
-        return False
+        return node_s1.symbol == node_s2.symbol and node_s1.is_pos != node_s2.is_pos
 
     def inconsistent_support_mutex(self, node_s1: PgNode_s, node_s2: PgNode_s):
         """
@@ -492,8 +519,13 @@ class PlanningGraph():
         :param node_s2: PgNode_s
         :return: bool
         """
+        ismutex = True
         # TODO test for Inconsistent Support between nodes
-        return False
+        for parent1 in node_s1.parents:
+            for parent2 in node_s2.parents:
+                if not parent1.is_mutex(parent2):
+                    return False
+        return ismutex
 
     def h_levelsum(self) -> int:
         """The sum of the level costs of the individual goals (admissible if goals independent)
