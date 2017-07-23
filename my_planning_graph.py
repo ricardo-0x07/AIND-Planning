@@ -455,17 +455,10 @@ class PlanningGraph():
         :return: bool
         """
         # TODO test for Competing Needs between nodes
-        precond_pos1 = node_a1.action.precond_pos
-        precond_neg2 = node_a2.action.precond_neg
-        precond_neg1 = node_a1.action.precond_neg
-        precond_pos2 = node_a2.action.precond_pos
-
-        for precond1 in precond_pos1:
-            if precond1 in precond_neg2 or precond1 not in precond_pos2:
-                return True
-        for precond2 in precond_pos2:
-            if precond2 in precond_neg1 or precond2 not in precond_pos1:
-                return True
+        for parent1 in node_a1.parents:
+            for parent2 in node_a2.parents:
+                if parent1.is_mutex(parent2):
+                    return True
         return False
 
     def update_s_mutex(self, nodeset: set):
@@ -535,4 +528,10 @@ class PlanningGraph():
         level_sum = 0
         # TODO implement
         # for each goal in the problem, determine the level cost, then add them together
+        checked = set()
+        for index, level in enumerate(self.s_levels):
+            for state in level:
+                if state.symbol in self.problem.goal and state.is_pos and state not in checked:
+                    checked.add(state)
+                    level_sum = level_sum + index
         return level_sum
